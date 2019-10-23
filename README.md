@@ -41,6 +41,7 @@ When the nvidia-xrun command is used, the device is added again to the tree so t
 * **/etc/X11/nvidia-xorg.conf.d** - custom X config directory
 * **/etc/systemd/system/nvidia-xrun-pm.service** systemd service
 * **/etc/default/nvidia-xrun** - nvidia-xrun config file
+* **/etc/modprobe.d/blacklist-nvidia-xrun.conf** - [avoid nvidia driver to load on boot](#avoid-nvidia-driver-to-load-on-boot) (likely sufficient for Ubuntu installations)
 * **/usr/share/xsessions/nvidia-xrun-openbox.desktop** - xsession file for openbox
 * **/usr/share/xsessions/nvidia-xrun-plasma.desktop** - xsession file for plasma
 * **[OPTIONAL] $XDG_CONFIG_HOME/X11/nvidia-xinitrc** - user-level custom xinit script file. You can put here your favourite window manager for example
