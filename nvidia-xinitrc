@@ -1,4 +1,7 @@
-#!/usr/bin/env bash
+#!/bin/sh
+# NOTICE: Do not use bash syntaxes here.
+# At least in my machine (Ubuntu 18.04),
+# this script seem to always be executed with sh.
 
 CONFIG_DIR=${XDG_CONFIG_HOME:-$HOME/.config}/X11
 userresources=$CONFIG_DIR/xresources
@@ -8,39 +11,39 @@ sysmodmap=/etc/X11/xinit/.Xmodmap
 userxinitrc=$CONFIG_DIR/nvidia-xinitrc
 
 # merge in defaults and keymaps
-if [[ -f ${sysresources} ]]; then
+if [ -f ${sysresources} ]; then
     xrdb -merge ${sysresources}
 fi
 
-if [[ -f ${sysmodmap} ]]; then
+if [ -f ${sysmodmap} ]; then
     xmodmap ${sysmodmap}
 fi
 
-if [[ -f "$userresources" ]]; then
+if [ -f "$userresources" ]; then
     xrdb -merge "$userresources"
 fi
 
-if [[ -f "$usermodmap" ]]; then
+if [ -f "$usermodmap" ]; then
     xmodmap "$usermodmap"
 fi
 
-export LD_LIBRARY_PATH=/usr/lib64/nvidia/:/usr/lib32/nvidia:/usr/lib:${LD_LIBRARY_PATH}
+export LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu/nvidia:/usr/lib:${LD_LIBRARY_PATH}
 
 # load additional configs
-if [[ -d /etc/X11/xinit/nvidia-xinitrc.d ]] ; then
- for f in /etc/X11/xinit/nvidia-xinitrc.d/?*.sh ; do
-  [[ -x "$f" ]] && . "$f"
- done
- unset f
+if [ -d /etc/X11/xinit/nvidia-xinitrc.d ]; then
+    for f in /etc/X11/xinit/nvidia-xinitrc.d/?*.sh; do
+        [ -x "$f" ] && . "$f"
+    done
+    unset f
 fi
 
 xrandr --setprovideroutputsource modesetting NVIDIA-0
 xrandr --auto
 
-if [[ -f "$userxinitrc" ]]; then
+if [ -f "$userxinitrc" ]; then
     sh ${userxinitrc} $*
 else
-    if [[ $# -gt 0 ]]; then
+    if [ $# -gt 0 ]; then
         sh -c "exec $*"
 	fi
 fi

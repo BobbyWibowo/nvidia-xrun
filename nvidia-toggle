@@ -1,0 +1,147 @@
+#!/usr/bin/env bash
+
+# avoid tee to print in the stdout
+TEE='tee > /dev/null'
+VERBOSE=0
+DRY_RUN=0
+
+function printHelp {
+  echo "Utility to toggle discrete Nvidia graphic card"
+  echo "Usage: "
+  echo "nvidia-toggle [<options>] [<on|off>]"
+  echo "Options: "
+  echo "  -d    Dry run - prints the final command but does not execute it"
+  echo "  -v    Verbose - verbose output"
+}
+
+function execute {
+  if [[ ${DRY_RUN} -ne 0 ]]; then
+    echo ">>Dry run. Command: $@"
+  else
+    eval "$@"
+  fi
+}
+
+function say {
+  if [[ "$VERBOSE" == '1' ]]; then
+    echo "$@"
+  fi
+}
+
+function turn_off_gpu {
+  if [[ "$USE_BBSWITCH" == '1' ]]; then
+    echo 'Turning off GPU using bbswitch '
+    execute "sudo tee /proc/acpi/bbswitch <<<'OFF'"
+  else
+    if [[ "$REMOVE_DEVICE" == '1' ]]; then
+      say 'Removing Nvidia bus from the kernel'
+      execute "$TEE /sys/bus/pci/devices/${DEVICE_BUS_ID}/remove <<<1"
+    else
+      say 'Enabling powersave for the graphic card'
+      execute "$TEE /sys/bus/pci/devices/${DEVICE_BUS_ID}/power/control <<<auto"
+    fi
+
+    say 'Enabling powersave for the PCIe controller'
+    execute "$TEE /sys/bus/pci/devices/${CONTROLLER_BUS_ID}/power/control <<<auto"
+  fi
+}
+
+function turn_on_gpu {
+  if [[ "$USE_BBSWITCH" == '1' ]]; then
+    echo 'Turning on GPU using bbswitch '
+    execute "sudo tee /proc/acpi/bbswitch <<<'ON'"
+  else
+    say 'Turning the PCIe controller on to allow card rescan'
+    execute "$TEE /sys/bus/pci/devices/${CONTROLLER_BUS_ID}/power/control <<<on"
+
+    say 'Waiting 1 second'
+    execute "sleep 1"
+
+    if [[ ! -d "/sys/bus/pci/devices/${DEVICE_BUS_ID}" ]]; then
+      say 'Rescanning PCI devices'
+      execute "$TEE /sys/bus/pci/rescan <<<1"
+      say "Waiting ${BUS_RESCAN_WAIT_SEC} second for rescan"
+      execute "sleep ${BUS_RESCAN_WAIT_SEC}"
+    fi
+
+    say 'Turning the card on'
+    execute "$TEE /sys/bus/pci/devices/${DEVICE_BUS_ID}/power/control <<<on"
+  fi
+}
+
+function load_modules {
+  for module in "${MODULES_LOAD[@]}"
+  do
+    say "Loading module ${module}"
+    execute "modprobe ${module}"
+  done
+}
+
+function unload_modules {
+  for module in "${MODULES_UNLOAD[@]}"
+  do
+    say "Unloading module ${module}"
+    execute "modprobe -r ${module}"
+  done
+}
+
+# parse command line flags
+while [[ "${1:0:1}" == "-" ]]; do
+  case "$1" in
+    -d)
+      DRY_RUN=1
+      ;;
+    -v)
+      VERBOSE=1
+      ;;
+    -*)
+      printHelp
+      exit 1
+      ;;
+  esac
+  shift 1
+done
+
+# allows tee to print in the stdout
+if [[ "$VERBOSE" == '1' ]]; then
+  TEE='tee'
+fi
+
+if [[ $EUID -ne 0 ]]; then
+   echo "This script must be run as root" >&2
+   exit 1
+fi
+
+# load config file
+. /etc/default/nvidia-xrun
+
+# this is used by the systemd service to turn off the gpu at boot
+if [[ "$TURN_OFF_GPU_ONLY" == '1' ]]; then
+  turn_off_gpu
+  exit 0
+fi
+
+case $1 in
+on)
+  # --------- TURNING ON GPU -----------
+  if [[ "$ENABLE_PM" == '1' ]]; then
+    turn_on_gpu
+  fi
+
+  # ---------- LOADING MODULES ----------
+  load_modules
+  ;;
+off)
+  # ---------- UNLOADING MODULES --------
+  unload_modules
+
+  # --------- TURNING OFF GPU ----------
+  if [[ "$ENABLE_PM" == '1' ]]; then
+    turn_off_gpu
+  fi
+  ;;
+*)
+  printHelp
+  exit 1
+  ;;
+esac
