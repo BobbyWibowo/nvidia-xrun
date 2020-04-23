@@ -1,0 +1,6 @@
+# Programs that will run after Openbox has started (install manually)
+dunst &
+tint2 &
+
+# Execute vulkaninfo with sudo once, to fix issue with nvidia-drm.modeset=1
+env SUDO_ASKPASS=/usr/bin/kwalletaskpass sudo --askpass vulkaninfo > /dev/null 2>&1 &

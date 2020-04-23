@@ -1,0 +1,10 @@
+if [ $# -gt 0 ]; then
+    $*
+else
+    # Use Openbox with qt5ct for better Qt theming support (install manually)
+    # Setting VK_ICD_FILENAMES may improve Vulkan compatibility
+    env \
+      VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/nvidia_icd.json \
+      QT_QPA_PLATFORMTHEME=qt5ct \
+      openbox-session
+fi
